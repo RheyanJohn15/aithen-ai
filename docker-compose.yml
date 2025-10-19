@@ -1,0 +1,202 @@
+version: '3.8'
+
+services:
+  # ===============================
+  # Database Services
+  # ===============================
+  mysql:
+    image: mysql:8.0
+    container_name: aithen-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-aithen_root_password}
+      MYSQL_DATABASE: ${DB_DATABASE:-aithen_db}
+      MYSQL_USER: ${DB_USERNAME:-aithen_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-aithen_password}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./aithen-api/database/init:/docker-entrypoint-initdb.d
+    networks:
+      - aithen-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    container_name: aithen-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - aithen-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ===============================
+  # AI Service (FastAPI + Ollama)
+  # ===============================
+  ai-service:
+    build: ./ai-services
+    container_name: aithen-ai-service
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - OLLAMA_URL=http://ollama:11434
+      - MODEL=${AI_MODEL:-mistral}
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      ollama:
+        condition: service_healthy
+    networks:
+      - aithen-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: aithen-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - aithen-network
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ===============================
+  # Laravel API
+  # ===============================
+  api:
+    build: ./aithen-api
+    container_name: aithen-api
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      - APP_ENV=${APP_ENV:-production}
+      - APP_DEBUG=${APP_DEBUG:-false}
+      - APP_KEY=${APP_KEY:-base64:your-app-key-here}
+      - DB_CONNECTION=mysql
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=${DB_DATABASE:-aithen_db}
+      - DB_USERNAME=${DB_USERNAME:-aithen_user}
+      - DB_PASSWORD=${DB_PASSWORD:-aithen_password}
+      - CACHE_DRIVER=redis
+      - SESSION_DRIVER=redis
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - AI_SERVICE_URL=http://ai-service:8000
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - aithen-network
+    volumes:
+      - ./aithen-api/storage:/var/www/html/storage
+      - ./aithen-api/bootstrap/cache:/var/www/html/bootstrap/cache
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ===============================
+  # Next.js UI
+  # ===============================
+  ui:
+    build: ./aithen-ui
+    container_name: aithen-ui
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - AI_SERVICE_URL=http://ai-service:8000
+      - API_URL=http://api
+    depends_on:
+      - api
+      - ai-service
+    networks:
+      - aithen-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ===============================
+  # Nginx Reverse Proxy (Optional)
+  # ===============================
+  nginx:
+    image: nginx:alpine
+    container_name: aithen-nginx
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+    depends_on:
+      - api
+      - ui
+      - ai-service
+    networks:
+      - aithen-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+# ===============================
+# Networks
+# ===============================
+networks:
+  aithen-network:
+    driver: bridge
+    name: aithen-network
+
+# ===============================
+# Volumes
+# ===============================
+volumes:
+  mysql_data:
+    driver: local
+    name: aithen-mysql-data
+  redis_data:
+    driver: local
+    name: aithen-redis-data
+  ollama_data:
+    driver: local
+    name: aithen-ollama-data
