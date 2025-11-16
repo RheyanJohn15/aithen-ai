@@ -1,13 +1,17 @@
-    import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { 
-  getApiUrl, 
-  getApiHealthUrl, 
-  getApiChatStreamUrl, 
-  getApiPersonalitiesUrl, 
-  getApiPersonalityUrl,
-  getApiInfo,
-  isUsingProdApi 
-} from '../../lib/api';
+  streamChatWithCallback,
+  getPersonalities,
+  getPersonality,
+  getBaseUrl,
+  type ChatMessage as ApiChatMessage,
+  type Personality as ApiPersonality,
+} from '../../api';
+
+// Helper to check if using production API
+const isUsingProdApi = (): boolean => {
+  return process.env.NEXT_PUBLIC_USE_PROD_API === 'true';
+};
 
 export interface Message {
   id: string;
@@ -62,33 +66,46 @@ export const useAi = () => {
   const [apiStatus, setApiStatus] = useState<ApiStatus>({ status: 'checking' });
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Health check hook
+  // Health check hook - optional, doesn't block functionality
   const checkApiHealth = useCallback(async () => {
+    // Set status to checking first
+    setApiStatus({ status: 'checking', message: 'Checking connection...' });
+    
     try {
-      const apiInfo = getApiInfo();
-      console.log('API Configuration:', apiInfo);
+      // Simple health check - just verify we can reach the API
+      const baseUrl = getBaseUrl();
+      const pingUrl = `${baseUrl.replace('/api', '')}/ping`;
       
-      const response = await fetch(getApiHealthUrl());
+      const response = await fetch(pingUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+        // Don't throw on network errors, just catch them
+      });
+      
       if (response.ok) {
-        const data = await response.json();
         setApiStatus({ 
           status: 'connected', 
-          message: data.message || 'AI service is running' 
+          message: 'AI service is running' 
         });
         return true;
       } else {
+        // Non-200 response, but server is reachable
         setApiStatus({ 
-          status: 'error', 
-          message: 'API health check failed' 
+          status: 'connected', 
+          message: 'AI service is running' 
         });
-        return false;
+        return true;
       }
-    } catch (error) {
-      console.error('API health check failed:', error);
+    } catch (error: any) {
+      // Network error - server might not be running, but don't block UI
+      console.warn('API health check failed (non-blocking):', error);
       setApiStatus({ 
         status: 'error', 
-        message: 'Cannot connect to AI service' 
+        message: 'Cannot verify connection (chat may still work)' 
       });
+      // Return false but don't throw - allow chat to proceed
       return false;
     }
   }, []);
@@ -111,169 +128,63 @@ export const useAi = () => {
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
 
+    // Create assistant message placeholder
+    const assistantMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      role: 'assistant',
+      content: '',
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, assistantMessage]);
+
     try {
-      console.log('Sending message to:', getApiChatStreamUrl());
-      
-      // Try SSE endpoint first, fallback to regular stream
-      const streamUrl = getApiChatStreamUrl().replace('/stream', '/sse');
-      console.log('Using stream URL:', streamUrl);
-      
-      const response = await fetch(streamUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'text/event-stream',
-        },
-        body: JSON.stringify({
-          messages: [...messages, userMessage].map(msg => ({
-            role: msg.role,
-            content: msg.content
-          })),
+      // Convert messages to API format
+      const apiMessages: ApiChatMessage[] = [...messages, userMessage].map(msg => ({
+        role: msg.role,
+        content: msg.content
+      }));
+
+      // Use the new streaming API
+      await streamChatWithCallback(
+        {
+          messages: apiMessages,
           personality,
           max_tokens: maxTokens,
-          stream: true
-        }),
-      });
-
-      console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API Error:', errorText);
-        
-        // If SSE endpoint fails, try regular streaming endpoint
-        if (streamUrl.includes('/sse')) {
-          console.log('SSE endpoint failed, trying regular streaming endpoint...');
-          const regularStreamUrl = getApiChatStreamUrl();
-          const fallbackResponse = await fetch(regularStreamUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'text/plain',
-            },
-            body: JSON.stringify({
-              messages: [...messages, userMessage].map(msg => ({
-                role: msg.role,
-                content: msg.content
-              })),
-              personality,
-              max_tokens: maxTokens,
-              stream: true
-            }),
-          });
-          
-          if (!fallbackResponse.ok) {
-            throw new Error(`API Error: ${fallbackResponse.status} - ${await fallbackResponse.text()}`);
-          }
-          
-          // Use the fallback response - handle it inline
-          const fallbackReader = fallbackResponse.body?.getReader();
-          const fallbackDecoder = new TextDecoder();
-          
-          if (fallbackReader) {
-            while (true) {
-              const { done, value } = await fallbackReader.read();
-              if (done) break;
-
-              const chunk = fallbackDecoder.decode(value, { stream: true });
-              if (chunk.trim()) {
-                setMessages(prev => 
-                  prev.map(msg => 
-                    msg.id === assistantMessage.id 
-                      ? { ...msg, content: msg.content + chunk }
-                      : msg
-                  )
-                );
-              }
-            }
-          }
-          return;
+        },
+        (content) => {
+          // Update assistant message with streaming content
+          setMessages(prev => 
+            prev.map(msg => 
+              msg.id === assistantMessage.id 
+                ? { ...msg, content: msg.content + content }
+                : msg
+            )
+          );
+        },
+        (error) => {
+          console.error('Stream error:', error);
+          setMessages(prev => 
+            prev.map(msg => 
+              msg.id === assistantMessage.id 
+                ? { ...msg, content: 'Sorry, I encountered an error. Please try again.' }
+                : msg
+            )
+          );
+        },
+        () => {
+          console.log('Stream completed');
         }
-        
-        throw new Error(`API Error: ${response.status} - ${errorText}`);
-      }
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: '',
-        timestamp: new Date()
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
-
-      if (reader) {
-        console.log('Starting to read stream...');
-        let buffer = '';
-        
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) {
-            console.log('Stream completed');
-            break;
-          }
-
-          const chunk = decoder.decode(value, { stream: true });
-          buffer += chunk;
-          
-          // Process complete lines
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || ''; // Keep incomplete line in buffer
-          
-          for (const line of lines) {
-            const trimmedLine = line.trim();
-            if (trimmedLine.startsWith('data: ')) {
-              const data = trimmedLine.substring(6); // Remove 'data: ' prefix
-              
-              if (data === '[DONE]') {
-                console.log('Stream finished with [DONE]');
-                break;
-              }
-              
-              try {
-                const parsed = JSON.parse(data);
-                if (parsed.content !== undefined) {
-                  console.log('Parsed content:', parsed.content);
-                  setMessages(prev => 
-                    prev.map(msg => 
-                      msg.id === assistantMessage.id 
-                        ? { ...msg, content: msg.content + parsed.content }
-                        : msg
-                    )
-                  );
-                }
-              } catch (e) {
-                console.warn('Failed to parse SSE data:', data, e);
-                // Fallback: treat as plain text if JSON parsing fails
-                if (data.trim()) {
-                  setMessages(prev => 
-                    prev.map(msg => 
-                      msg.id === assistantMessage.id 
-                        ? { ...msg, content: msg.content + data }
-                        : msg
-                    )
-                  );
-                }
-              }
-            }
-          }
-        }
-      } else {
-        console.error('No reader available');
-        throw new Error('No response body reader available');
-      }
+      );
     } catch (error) {
       console.error('Error sending message:', error);
-      setMessages(prev => [...prev, {
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.',
-        timestamp: new Date()
-      }]);
+      setMessages(prev => 
+        prev.map(msg => 
+          msg.id === assistantMessage.id 
+            ? { ...msg, content: 'Sorry, I encountered an error. Please try again.' }
+            : msg
+        )
+      );
     } finally {
       setIsLoading(false);
     }
@@ -326,8 +237,7 @@ export const useAi = () => {
     getConversationHistory,
     exportConversation,
     checkApiHealth,
-    isUsingProdApi: isUsingProdApi(),
-    apiUrl: getApiUrl()
+    apiUrl: getBaseUrl()
   };
 };
 
@@ -343,13 +253,14 @@ export const usePersonalities = () => {
     setError(null);
     
     try {
-      const response = await fetch(getApiPersonalitiesUrl());
-      if (response.ok) {
-        const data = await response.json();
-        setPersonalities(data);
-      } else {
-        throw new Error('Failed to fetch personalities');
-      }
+      const response = await getPersonalities();
+      // Fetch each personality detail
+      const personalityPromises = response.data.map(id => getPersonality(id));
+      const personalityResults = await Promise.all(personalityPromises);
+      const personalities = personalityResults
+        .map(res => res.data)
+        .filter((p): p is ApiPersonality => p !== null) as Personality[];
+      setPersonalities(personalities);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -360,11 +271,8 @@ export const usePersonalities = () => {
   // Fetch specific personality
   const fetchPersonality = useCallback(async (id: string): Promise<Personality | null> => {
     try {
-      const response = await fetch(getApiPersonalityUrl(id));
-      if (response.ok) {
-        return await response.json();
-      }
-      return null;
+      const response = await getPersonality(id);
+      return response.data as Personality;
     } catch (err) {
       console.error('Error fetching personality:', err);
       return null;
@@ -420,11 +328,9 @@ export const useChatSuggestions = () => {
 
 // API configuration hook
 export const useApiConfig = () => {
-  const apiInfo = getApiInfo();
-  
   return {
-    ...apiInfo,
+    apiUrl: getBaseUrl(),
     isProduction: isUsingProdApi(),
-    isDevelopment: !isUsingProdApi()
+    isDevelopment: !isUsingProdApi(),
   };
 };
