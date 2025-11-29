@@ -85,6 +85,20 @@ const handleError = (error: any, response?: Response): ApiError => {
 };
 
 /**
+ * Check if a path should skip authentication
+ * Only /auth/login and /auth/register are public
+ */
+const shouldSkipAuth = (path: string, skipAuth: boolean): boolean => {
+  if (skipAuth) return true;
+  
+  // Public routes that don't require authentication
+  const publicRoutes = ['/auth/login', '/auth/register'];
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  
+  return publicRoutes.some(route => normalizedPath === route || normalizedPath.startsWith(route + '?'));
+};
+
+/**
  * Make an HTTP request
  */
 const request = async <T = any>(
@@ -93,7 +107,7 @@ const request = async <T = any>(
   config: ApiRequestConfig = {}
 ): Promise<ApiResponse<T>> => {
   const {
-    skipAuth = false,
+    skipAuth: explicitSkipAuth = false,
     token,
     apiKey,
     authType = 'bearer',
@@ -108,6 +122,9 @@ const request = async <T = any>(
     throw new Error('Use stream() method for streaming requests instead of setting stream: true');
   }
 
+  // Determine if auth should be skipped (explicit or public route)
+  const skipAuth = shouldSkipAuth(path, explicitSkipAuth);
+
   // Build headers
   const defaultHeaders = getDefaultHeaders();
   const headers: HeadersInit = {
@@ -116,6 +133,7 @@ const request = async <T = any>(
   };
 
   // Add authentication headers if not skipped
+  // This acts as an interceptor - automatically adds token to all authenticated routes
   if (!skipAuth) {
     const authHeaders = getAuthHeaders(authType, token, apiKey);
     Object.assign(headers, authHeaders);
@@ -191,13 +209,16 @@ const streamRequest = (
   config: ApiRequestConfig = {}
 ): Promise<StreamingResponse> => {
   const {
-    skipAuth = false,
+    skipAuth: explicitSkipAuth = false,
     token,
     apiKey,
     authType = 'bearer',
     headers: customHeaders = {},
     ...fetchConfig
   } = config;
+
+  // Determine if auth should be skipped (explicit or public route)
+  const skipAuth = shouldSkipAuth(path, explicitSkipAuth);
 
   // Build headers
   const defaultHeaders = getDefaultHeaders();
@@ -207,6 +228,7 @@ const streamRequest = (
   };
 
   // Add authentication headers if not skipped
+  // This acts as an interceptor - automatically adds token to all authenticated routes
   if (!skipAuth) {
     const authHeaders = getAuthHeaders(authType, token, apiKey);
     Object.assign(headers, authHeaders);

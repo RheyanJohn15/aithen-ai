@@ -5,6 +5,8 @@ import Image from 'next/image';
 import { useAi, useApiConfig } from '../../hooks/ai/useAi';
 import { signout } from '../../api';
 import { useTheme } from '../theme/theme-provider';
+import { getUserSession, clearUserSession } from '@/lib/session';
+import type { User } from '@/api/authApi';
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -15,7 +17,14 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const { isProduction } = useApiConfig();
   const { theme, toggleTheme } = useTheme();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Load user data from session storage on mount
+  useEffect(() => {
+    const sessionUser = getUserSession();
+    setUser(sessionUser);
+  }, []);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -37,13 +46,22 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const handleLogout = async () => {
     try {
       await signout();
+      // Clear user session from session storage
+      clearUserSession();
       // Redirect to login page or reload
       window.location.href = '/login';
     } catch (error) {
       console.error('Logout failed:', error);
-      // Still redirect even if server logout fails
+      // Still clear session and redirect even if server logout fails
+      clearUserSession();
       window.location.href = '/login';
     }
+  };
+
+  // Get user initial for avatar
+  const getUserInitial = (): string => {
+    if (!user?.name) return 'U';
+    return user.name.charAt(0).toUpperCase();
   };
 
   const handleProfile = () => {
@@ -147,16 +165,20 @@ export default function Header({ onMenuClick }: HeaderProps) {
               className="flex items-center justify-center w-8 h-8 rounded-full bg-teal-500 hover:bg-teal-600 dark:bg-teal-600 dark:hover:bg-teal-500 text-white transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
               aria-label="User menu"
             >
-              <span className="text-sm font-medium">U</span>
+              <span className="text-sm font-medium">{getUserInitial()}</span>
             </button>
 
             {/* Dropdown Menu */}
             {isMenuOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
+              <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
                 {/* User Info */}
                 <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">User</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">user@example.com</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white break-words">
+                    {user?.name || 'User'}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 break-all">
+                    {user?.email || 'user@example.com'}
+                  </p>
                 </div>
 
                 {/* Menu Items */}

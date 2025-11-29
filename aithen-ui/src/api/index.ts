@@ -76,6 +76,7 @@ export {
   register,
   signout,
   refresh,
+  getCurrentUser,
 } from './authApi';
 
 export type {
@@ -83,6 +84,7 @@ export type {
   RegisterRequest,
   AuthResponse,
   RefreshTokenRequest,
+  User,
 } from './authApi';
 
 // AI API endpoints
@@ -101,6 +103,24 @@ export type {
   Personality,
   ChatStreamChunk,
 } from './aiApi';
+
+// Chat API endpoints
+export {
+  createChat,
+  getChat,
+  getChats,
+  updateChat,
+  deleteChat,
+  addMessage,
+} from './chatApi';
+
+export type {
+  Chat,
+  ChatMessage as ChatApiMessage,
+  CreateChatRequest,
+  UpdateChatRequest,
+  ChatWithMessages,
+} from './chatApi';
 
 // Types
 export type {

@@ -8,7 +8,7 @@
  * - refresh: Refresh the JWT token
  */
 
-import { post } from './api';
+import { post, get } from './api';
 import { setToken, removeToken } from './auth';
 import type { ApiResponse } from './types';
 
@@ -31,25 +31,30 @@ export interface RegisterRequest {
 }
 
 /**
+ * User information
+ */
+export interface User {
+  id: number;
+  email: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
  * Authentication response (typically contains token and user info)
  */
 export interface AuthResponse {
   token: string;
-  refreshToken?: string;
-  user?: {
-    id: string;
-    email: string;
-    name?: string;
-    [key: string]: any;
-  };
-  expiresIn?: number;
+  user: User;
 }
 
 /**
- * Refresh token request payload
+ * Refresh token request payload (deprecated - no longer needed)
+ * @deprecated The refresh endpoint now uses the current JWT token automatically
  */
 export interface RefreshTokenRequest {
-  refreshToken?: string; // Optional, can use stored refresh token
+  refreshToken?: string; // Deprecated - not used anymore
 }
 
 /**
@@ -203,7 +208,8 @@ export const signout = async (
 /**
  * Refresh the JWT token
  * 
- * @param refreshTokenData - Optional refresh token (if not provided, uses stored refresh token)
+ * Uses the current JWT token to get a new one. The token is automatically included from storage.
+ * 
  * @returns New authentication response with refreshed token
  * 
  * @example
@@ -217,29 +223,13 @@ export const signout = async (
  * }
  * ```
  */
-export const refresh = async (
-  refreshTokenData?: RefreshTokenRequest
-): Promise<ApiResponse<AuthResponse>> => {
-  // Get refresh token from parameter or localStorage
-  let refreshToken = refreshTokenData?.refreshToken;
-  
-  if (!refreshToken && typeof window !== 'undefined') {
-    try {
-      refreshToken = localStorage.getItem('refresh_token') || undefined;
-    } catch (error) {
-      console.error('Failed to get refresh token:', error);
-    }
-  }
-
-  if (!refreshToken) {
-    throw new Error('No refresh token available');
-  }
-
-  const response = await post<AuthResponse>(
+export const refresh = async (): Promise<ApiResponse<{ token: string }>> => {
+  // Token is automatically included via interceptor (skipAuth: false by default)
+  const response = await post<{ token: string }>(
     '/auth/refresh',
-    { refreshToken },
+    {},
     {
-      skipAuth: true, // Refresh endpoint typically doesn't require current token
+      // Token will be automatically added by interceptor
     }
   );
 
@@ -248,15 +238,27 @@ export const refresh = async (
     setToken(response.data.token);
   }
 
-  // Update refresh token if new one is provided
-  if (response.data.refreshToken && typeof window !== 'undefined') {
-    try {
-      localStorage.setItem('refresh_token', response.data.refreshToken);
-    } catch (error) {
-      console.error('Failed to store refresh token:', error);
-    }
-  }
-
   return response;
+};
+
+/**
+ * Get the current authenticated user
+ * 
+ * @returns Current user information
+ * 
+ * @example
+ * ```ts
+ * try {
+ *   const response = await getCurrentUser();
+ *   console.log('Current user:', response.data);
+ * } catch (error) {
+ *   console.error('Failed to get user:', error);
+ *   // Token might be invalid, redirect to login
+ * }
+ * ```
+ */
+export const getCurrentUser = async (): Promise<ApiResponse<User>> => {
+  // Token is automatically included via interceptor (skipAuth: false by default)
+  return get<User>('/auth/me');
 };
 

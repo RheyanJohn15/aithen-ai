@@ -1,7 +1,9 @@
 'use client';
 
 import { useRef, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAi } from '../hooks/ai/useAi';
+import { createChat } from '../api';
 import Header from '../components/navigation/header';
 import Sidebar from '../components/navigation/sidebar';
 import Message from '../components/chat/message';
@@ -18,6 +20,7 @@ const FormattedTimestamp = ({ timestamp }: { timestamp: Date }) => {
 };
 
 export default function Home() {
+  const router = useRouter();
   const { 
     messages, 
     isLoading, 
@@ -27,6 +30,7 @@ export default function Home() {
   } = useAi();
   const [input, setInput] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isCreatingChat, setIsCreatingChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -49,11 +53,53 @@ export default function Home() {
   }, [checkApiHealth]);
 
   const handleSendMessage = async () => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || isCreatingChat) return;
     
     const message = input.trim();
-    setInput('');
-    await sendMessage(message);
+    
+    // If this is the first conversation (only initial message exists), create a chat and redirect
+    const isFirstConversation = messages.length === 1;
+    
+    if (isFirstConversation) {
+      setIsCreatingChat(true);
+      try {
+        // Create a new chat with the first message as title (truncated)
+        const title = message.length > 50 ? message.substring(0, 50) + '...' : message;
+        const response = await createChat({ title });
+        
+        if (!response || !response.data || !response.data.id) {
+          throw new Error('Invalid response from chat creation');
+        }
+        
+        // Keep chat ID as string to avoid precision loss with large Snowflake IDs
+        const chatId = String(response.data.id);
+        const userId = String(response.data.user_id);
+        
+        // Verify we're using the chat ID, not user ID
+        if (!chatId || chatId === userId) {
+          throw new Error('Invalid chat ID received');
+        }
+        
+        // Clear input before redirect
+        setInput('');
+        
+        // Small delay to ensure chat is fully committed to database before redirecting
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Redirect to chat page with the message as query parameter
+        // The chat page will handle sending the message (with retry logic for 404s)
+        router.push(`/chat/${chatId}?initialMessage=${encodeURIComponent(message)}`);
+      } catch (error) {
+        // If chat creation fails, still send the message on home page
+        setInput('');
+        await sendMessage(message);
+        setIsCreatingChat(false);
+      }
+    } else {
+      // Not first conversation, just send message
+      setInput('');
+      await sendMessage(message);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -64,13 +110,12 @@ export default function Home() {
   };
 
   const handleNewChat = () => {
-    clearConversation();
+    // Sidebar handles new chat creation now
     setSidebarOpen(false); // Close sidebar on mobile after selecting
   };
 
   const handleSettingsClick = () => {
     // Navigate to settings or open settings modal
-    console.log('Open advanced settings');
     setSidebarOpen(false); // Close sidebar on mobile
   };
 
@@ -179,7 +224,7 @@ export default function Home() {
                 placeholder="Ask anything"
                 className="flex-1 resize-none border-0 bg-transparent px-3 py-3 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none"
                 rows={1}
-                disabled={isLoading}
+                disabled={isLoading || isCreatingChat}
               />
               <div className="flex items-center space-x-1 p-2">
                 <button 
@@ -194,10 +239,10 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={handleSendMessage}
-                  disabled={!input.trim() || isLoading}
+                  disabled={!input.trim() || isLoading || isCreatingChat}
                   className={`
                     p-2 rounded-lg transition-all duration-200
-                    ${!input.trim() || isLoading
+                    ${!input.trim() || isLoading || isCreatingChat
                       ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
                       : 'text-white bg-teal-500 hover:bg-teal-600 dark:bg-teal-600 dark:hover:bg-teal-500 shadow-sm hover:shadow-md'
                     }

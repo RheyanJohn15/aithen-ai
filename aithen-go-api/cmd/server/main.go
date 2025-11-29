@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/aithen/go-api/internal/auth"
 	"github.com/aithen/go-api/internal/config"
 	"github.com/aithen/go-api/internal/db"
 	"github.com/aithen/go-api/internal/router"
@@ -13,6 +14,14 @@ import (
 func main() {
 	// Load environment variables
 	config.LoadEnv()
+
+	// Initialize JWT with secret from environment
+	jwtSecret := config.GetEnv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "your-secret-key-change-in-production"
+		log.Println("⚠️  JWT_SECRET not set, using default (change in production!)")
+	}
+	auth.SetDefaultJWTSecret(jwtSecret)
 
 	// Connect to the database
 	db.Connect()

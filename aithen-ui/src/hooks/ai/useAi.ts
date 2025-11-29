@@ -7,6 +7,7 @@ import {
   type ChatMessage as ApiChatMessage,
   type Personality as ApiPersonality,
 } from '../../api';
+import { addMessage } from '../../api/chatApi';
 
 // Helper to check if using production API
 const isUsingProdApi = (): boolean => {
@@ -54,7 +55,7 @@ export interface ApiStatus {
 
 // Main AI hook
 export const useAi = () => {
-  const [messages, setMessages] = useState<Message[]>([
+  const [messages, setMessagesState] = useState<Message[]>([
     {
       id: '1',
       role: 'assistant',
@@ -114,7 +115,8 @@ export const useAi = () => {
   const sendMessage = useCallback(async (
     content: string, 
     personality: string = 'aithen_core',
-    maxTokens: number = 512
+    maxTokens: number = 512,
+    chatId?: string // Optional chat ID to save messages to database
   ) => {
     if (!content.trim() || isLoading) return;
 
@@ -125,8 +127,15 @@ export const useAi = () => {
       timestamp: new Date()
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setMessagesState(prev => [...prev, userMessage]);
     setIsLoading(true);
+    
+    // Save user message to database if chatId is provided (non-blocking)
+    if (chatId) {
+      addMessage(chatId, 'user', content.trim()).catch(() => {
+        // Silently fail - don't block the UI if saving fails
+      });
+    }
 
     // Create assistant message placeholder
     const assistantMessage: Message = {
@@ -136,11 +145,16 @@ export const useAi = () => {
       timestamp: new Date()
     };
 
-    setMessages(prev => [...prev, assistantMessage]);
+    // Track assistant message content for saving to database
+    let assistantContent = '';
+
+    setMessagesState(prev => [...prev, assistantMessage]);
 
     try {
       // Convert messages to API format
-      const apiMessages: ApiChatMessage[] = [...messages, userMessage].map(msg => ({
+      // Skip the initial greeting message (id === '1') to prevent duplicate responses
+      const messagesToSend = messages.filter(msg => msg.id !== '1');
+      const apiMessages: ApiChatMessage[] = [...messagesToSend, userMessage].map(msg => ({
         role: msg.role,
         content: msg.content
       }));
@@ -154,7 +168,8 @@ export const useAi = () => {
         },
         (content) => {
           // Update assistant message with streaming content
-          setMessages(prev => 
+          assistantContent += content;
+          setMessagesState(prev => 
             prev.map(msg => 
               msg.id === assistantMessage.id 
                 ? { ...msg, content: msg.content + content }
@@ -164,7 +179,7 @@ export const useAi = () => {
         },
         (error) => {
           console.error('Stream error:', error);
-          setMessages(prev => 
+          setMessagesState(prev => 
             prev.map(msg => 
               msg.id === assistantMessage.id 
                 ? { ...msg, content: 'Sorry, I encountered an error. Please try again.' }
@@ -172,13 +187,19 @@ export const useAi = () => {
             )
           );
         },
-        () => {
-          console.log('Stream completed');
+        async () => {
+          // Stream completed - save assistant message to database if chatId is provided
+          if (chatId && assistantContent) {
+            // Save assistant message (non-blocking)
+            addMessage(chatId, 'assistant', assistantContent).catch(() => {
+              // Silently fail - don't block the UI if saving fails
+            });
+          }
         }
       );
     } catch (error) {
       console.error('Error sending message:', error);
-      setMessages(prev => 
+      setMessagesState(prev => 
         prev.map(msg => 
           msg.id === assistantMessage.id 
             ? { ...msg, content: 'Sorry, I encountered an error. Please try again.' }
@@ -192,12 +213,17 @@ export const useAi = () => {
 
   // Clear conversation hook
   const clearConversation = useCallback(() => {
-    setMessages([{
+    setMessagesState([{
       id: '1',
       role: 'assistant',
       content: 'Hello! I\'m Aithen, your AI assistant. How can I help you today?',
       timestamp: new Date()
     }]);
+  }, []);
+
+  // Set messages (useful for loading existing chat history)
+  const setMessages = useCallback((newMessages: Message[]) => {
+    setMessagesState(newMessages);
   }, []);
 
   // Get conversation history
@@ -237,6 +263,7 @@ export const useAi = () => {
     getConversationHistory,
     exportConversation,
     checkApiHealth,
+    setMessages,
     apiUrl: getBaseUrl()
   };
 };
