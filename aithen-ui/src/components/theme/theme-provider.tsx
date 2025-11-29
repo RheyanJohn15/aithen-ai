@@ -19,27 +19,19 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // On mount, read the actual theme from the DOM (set by blocking script) or localStorage
+    // On mount, read the actual theme from localStorage, defaulting to 'light'
     if (typeof window !== 'undefined') {
       const root = document.documentElement;
-      const hasDarkClass = root.classList.contains('dark');
       const savedTheme = localStorage.getItem('theme') as Theme | null;
       
-      // Determine actual theme
-      let actualTheme: Theme;
-      if (savedTheme) {
-        actualTheme = savedTheme;
-      } else if (hasDarkClass) {
-        actualTheme = 'dark';
-      } else {
-        actualTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      }
+      // Determine actual theme - default to 'light' if no saved preference
+      const actualTheme: Theme = savedTheme || 'light';
       
       setThemeState(actualTheme);
-      // Apply theme class if not already applied
-      if (actualTheme === 'dark' && !hasDarkClass) {
+      // Apply theme class
+      if (actualTheme === 'dark') {
         root.classList.add('dark');
-      } else if (actualTheme === 'light' && hasDarkClass) {
+      } else {
         root.classList.remove('dark');
       }
       setMounted(true);
