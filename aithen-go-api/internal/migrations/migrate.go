@@ -13,20 +13,25 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib" // PostgreSQL driver for database/sql
 )
 
-// RunMigrations runs all pending migrations
-func RunMigrations() error {
-	// Load environment variables
-	config.LoadEnv()
-
-	// Build database connection string
-	dbUrl := fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
+// buildDatabaseURL builds a PostgreSQL connection URL
+func buildDatabaseURL() string {
+	return fmt.Sprintf(
+		"postgres://%s:%s@%s:%s/%s",
 		config.GetEnv("DB_USER"),
 		config.GetEnv("DB_PASS"),
 		config.GetEnv("DB_HOST"),
 		config.GetEnv("DB_PORT"),
 		config.GetEnv("DB_NAME"),
 	)
+}
+
+// RunMigrations runs all pending migrations
+func RunMigrations() error {
+	// Load environment variables
+	config.LoadEnv()
+
+	// Build database connection string
+	dbUrl := buildDatabaseURL()
 
 	// Open database connection using pgx driver
 	db, err := sql.Open("pgx", dbUrl)
@@ -73,14 +78,7 @@ func RunMigrations() error {
 func DownMigrations() error {
 	config.LoadEnv()
 
-	dbUrl := fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
-		config.GetEnv("DB_USER"),
-		config.GetEnv("DB_PASS"),
-		config.GetEnv("DB_HOST"),
-		config.GetEnv("DB_PORT"),
-		config.GetEnv("DB_NAME"),
-	)
+	dbUrl := buildDatabaseURL()
 
 	db, err := sql.Open("pgx", dbUrl)
 	if err != nil {
@@ -121,14 +119,7 @@ func DownMigrations() error {
 func GetMigrationVersion() (uint, bool, error) {
 	config.LoadEnv()
 
-	dbUrl := fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
-		config.GetEnv("DB_USER"),
-		config.GetEnv("DB_PASS"),
-		config.GetEnv("DB_HOST"),
-		config.GetEnv("DB_PORT"),
-		config.GetEnv("DB_NAME"),
-	)
+	dbUrl := buildDatabaseURL()
 
 	db, err := sql.Open("pgx", dbUrl)
 	if err != nil {
@@ -168,14 +159,7 @@ func GetMigrationVersion() (uint, bool, error) {
 func FreshMigrations() error {
 	config.LoadEnv()
 
-	dbUrl := fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
-		config.GetEnv("DB_USER"),
-		config.GetEnv("DB_PASS"),
-		config.GetEnv("DB_HOST"),
-		config.GetEnv("DB_PORT"),
-		config.GetEnv("DB_NAME"),
-	)
+	dbUrl := buildDatabaseURL()
 
 	db, err := sql.Open("pgx", dbUrl)
 	if err != nil {
@@ -213,14 +197,7 @@ func FreshMigrations() error {
 func ForceVersion(version int) error {
 	config.LoadEnv()
 
-	dbUrl := fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
-		config.GetEnv("DB_USER"),
-		config.GetEnv("DB_PASS"),
-		config.GetEnv("DB_HOST"),
-		config.GetEnv("DB_PORT"),
-		config.GetEnv("DB_NAME"),
-	)
+	dbUrl := buildDatabaseURL()
 
 	db, err := sql.Open("pgx", dbUrl)
 	if err != nil {

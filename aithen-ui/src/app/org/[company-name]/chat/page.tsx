@@ -1,11 +1,29 @@
 'use client';
 
 import { useRef, useEffect, useState } from 'react';
-import { useAi } from '../hooks/ai/useAi';
-import Message from '../components/chat/message';
+import { useRouter, useParams } from 'next/navigation';
+import { useAi } from '@/hooks/ai/useAi';
+import { createChat } from '@/api';
+import Header from '@/components/navigation/header';
+import Sidebar from '@/components/navigation/sidebar';
+import Message from '@/components/chat/message';
 import { Plus, Mic, Send } from 'lucide-react';
 
-export default function PublicChat() {
+// Client-only timestamp component to avoid hydration mismatch
+const FormattedTimestamp = ({ timestamp }: { timestamp: Date }) => {
+  const [clientTime, setClientTime] = useState('');
+
+  useEffect(() => {
+    setClientTime(timestamp.toLocaleTimeString());
+  }, [timestamp]);
+
+  return <>{clientTime}</>;
+};
+
+export default function Home() {
+  const router = useRouter();
+  const params = useParams();
+  const companyName = params?.['company-name'] as string || '';
   const { 
     messages, 
     isLoading, 
@@ -14,6 +32,8 @@ export default function PublicChat() {
     checkApiHealth 
   } = useAi();
   const [input, setInput] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isCreatingChat, setIsCreatingChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -36,11 +56,54 @@ export default function PublicChat() {
   }, [checkApiHealth]);
 
   const handleSendMessage = async () => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || isCreatingChat) return;
     
     const message = input.trim();
-    setInput('');
-    await sendMessage(message);
+    
+    // If this is the first conversation (only initial message exists), create a chat and redirect
+    const isFirstConversation = messages.length === 1;
+    
+    if (isFirstConversation) {
+      setIsCreatingChat(true);
+      try {
+        // Create a new chat with the first message as title (truncated)
+        const title = message.length > 50 ? message.substring(0, 50) + '...' : message;
+        const response = await createChat({ title });
+        
+        if (!response || !response.data || !response.data.id) {
+          throw new Error('Invalid response from chat creation');
+        }
+        
+        // Keep chat ID as string to avoid precision loss with large Snowflake IDs
+        const chatId = String(response.data.id);
+        const userId = String(response.data.user_id);
+        
+        // Verify we're using the chat ID, not user ID
+        if (!chatId || chatId === userId) {
+          throw new Error('Invalid chat ID received');
+        }
+        
+        // Clear input before redirect
+        setInput('');
+        
+        // Small delay to ensure chat is fully committed to database before redirecting
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Redirect to chat page with the message as query parameter
+        // The chat page will handle sending the message (with retry logic for 404s)
+        const chatPath = companyName ? `/org/${companyName}/chat/${chatId}` : `/chat/${chatId}`;
+        router.push(`${chatPath}?initialMessage=${encodeURIComponent(message)}`);
+      } catch (error) {
+        // If chat creation fails, still send the message on home page
+        setInput('');
+        await sendMessage(message);
+        setIsCreatingChat(false);
+      }
+    } else {
+      // Not first conversation, just send message
+      setInput('');
+      await sendMessage(message);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -50,69 +113,68 @@ export default function PublicChat() {
     }
   };
 
-  const handleNewConversation = () => {
-    clearConversation();
+  const handleNewChat = () => {
+    // Sidebar handles new chat creation now
+    setSidebarOpen(false); // Close sidebar on mobile after selecting
+  };
+
+  const handleSettingsClick = () => {
+    // Navigate to settings or open settings modal
+    setSidebarOpen(false); // Close sidebar on mobile
   };
 
   return (
-    <div className="flex flex-col h-screen bg-white dark:bg-gray-900">
-      {/* Simple Header */}
-      <header className="border-b border-gray-200/60 dark:border-gray-700/60 px-4 py-3 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <h1 className="text-sm font-semibold text-gray-900 dark:text-white font-heading">
-            Aithen AI - Public Chat
-          </h1>
-          {messages.length > 1 && (
-            <button
-              onClick={handleNewConversation}
-              className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
-            >
-              New Conversation
-            </button>
-          )}
-        </div>
-      </header>
+    <div className="flex h-screen bg-white dark:bg-gray-900">
+      {/* Sidebar */}
+      <Sidebar
+        onNewChat={handleNewChat}
+        onSettingsClick={handleSettingsClick}
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
+      />
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto">
+      {/* Main Content Area */}
+      <div className="flex flex-col flex-1 overflow-hidden">
+        {/* Header */}
+        <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+
+        {/* Messages - ChatGPT style */}
+        <div className="flex-1 overflow-y-auto">
         {messages.length === 1 ? (
           // Welcome screen when only initial message
           <div className="flex flex-col items-center justify-center h-full px-4">
             <div className="text-center max-w-2xl">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 font-heading">
-                Start a conversation
+                What's on the agenda today?
               </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                Ask me anything - no account required
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 mb-6">
                 <div 
                   className="p-3.5 border border-gray-200/60 dark:border-gray-700/60 rounded-lg hover:bg-gray-50/80 dark:hover:bg-gray-800/80 cursor-pointer transition-all hover:border-[var(--color-aithen-teal)]/30 dark:hover:border-[var(--color-aithen-teal)]/30 hover:shadow-sm"
                   onClick={() => setInput("Help me plan a weekend getaway")}
                 >
                   <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-1.5 font-heading">Plan a trip</h3>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">Help me plan a weekend getaway</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Help me plan a weekend getaway</p>
                 </div>
                 <div 
                   className="p-3.5 border border-gray-200/60 dark:border-gray-700/60 rounded-lg hover:bg-gray-50/80 dark:hover:bg-gray-800/80 cursor-pointer transition-all hover:border-[var(--color-aithen-teal)]/30 dark:hover:border-[var(--color-aithen-teal)]/30 hover:shadow-sm"
                   onClick={() => setInput("Generate a Python function that calculates the factorial of a number")}
                 >
                   <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-1.5 font-heading">Write code</h3>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">Generate a Python function</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Generate a Python function</p>
                 </div>
                 <div 
                   className="p-3.5 border border-gray-200/60 dark:border-gray-700/60 rounded-lg hover:bg-gray-50/80 dark:hover:bg-gray-800/80 cursor-pointer transition-all hover:border-[var(--color-aithen-teal)]/30 dark:hover:border-[var(--color-aithen-teal)]/30 hover:shadow-sm"
                   onClick={() => setInput("Help me analyze and understand my data better")}
                 >
                   <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-1.5 font-heading">Analyze data</h3>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">Help me understand my data</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Help me understand my data</p>
                 </div>
                 <div 
                   className="p-3.5 border border-gray-200/60 dark:border-gray-700/60 rounded-lg hover:bg-gray-50/80 dark:hover:bg-gray-800/80 cursor-pointer transition-all hover:border-[var(--color-aithen-teal)]/30 dark:hover:border-[var(--color-aithen-teal)]/30 hover:shadow-sm"
                   onClick={() => setInput("Help me write a creative short story")}
                 >
                   <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-1.5 font-heading">Creative writing</h3>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">Help me write a story</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Help me write a story</p>
                 </div>
               </div>
             </div>
@@ -146,47 +208,41 @@ export default function PublicChat() {
             )}
           </div>
         )}
-        <div ref={messagesEndRef} />
-      </div>
+          <div ref={messagesEndRef} />
+        </div>
 
-      {/* Input */}
-      <div className="border-t border-gray-200/60 dark:border-gray-700/60 px-4 py-3">
-        <div className="max-w-3xl mx-auto">
+        {/* Input - ChatGPT style */}
+        <div className="border-t border-gray-200/60 dark:border-gray-700/60 px-4 py-3">
+          <div className="max-w-3xl mx-auto">
           <div className="relative">
             <div className="flex items-center border border-gray-300/60 dark:border-gray-600/60 rounded-xl bg-white dark:bg-gray-800/50 shadow-sm hover:shadow-md transition-shadow">
-              <button 
-                onClick={handleNewConversation}
-                className="p-2.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                aria-label="New conversation"
-                title="New conversation"
-              >
+              <button className="p-2.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
                 <Plus className="w-4 h-4" />
               </button>
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Ask anything..."
+                placeholder="Ask anything"
                 className="flex-1 resize-none border-0 bg-transparent px-3 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none"
                 rows={1}
-                disabled={isLoading}
+                disabled={isLoading || isCreatingChat}
               />
               <div className="flex items-center space-x-1 p-1.5">
                 <button 
                   type="button"
                   className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
                   aria-label="Voice input"
-                  title="Voice input (coming soon)"
                 >
                   <Mic className="w-4 h-4" />
                 </button>
                 <button
                   type="button"
                   onClick={handleSendMessage}
-                  disabled={!input.trim() || isLoading}
+                  disabled={!input.trim() || isLoading || isCreatingChat}
                   className={`
                     p-2 rounded-lg transition-all duration-200
-                    ${!input.trim() || isLoading
+                    ${!input.trim() || isLoading || isCreatingChat
                       ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
                       : 'text-white bg-[var(--color-aithen-teal)] hover:bg-[var(--color-aithen-teal-dark)] shadow-sm hover:shadow-md'
                     }
@@ -198,8 +254,9 @@ export default function PublicChat() {
               </div>
             </div>
           </div>
-          <div className="text-xs text-gray-500 dark:text-gray-500 mt-1.5 text-center">
-            Aithen can make mistakes. Consider checking important information.
+            <div className="text-xs text-gray-500 dark:text-gray-500 mt-1.5 text-center">
+              Aithen can make mistakes. Consider checking important information.
+            </div>
           </div>
         </div>
       </div>

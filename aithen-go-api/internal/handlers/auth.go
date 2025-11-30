@@ -13,6 +13,15 @@ type RegisterRequest struct {
 	Email    string `json:"email" binding:"required,email"`
 	Name     string `json:"name" binding:"required,min=2"`
 	Password string `json:"password" binding:"required,min=6"`
+	// Organization fields
+	OrganizationName        string `json:"organization_name" binding:"required,min=2"`
+	OrganizationSlug        string `json:"organization_slug"`
+	OrganizationDescription string `json:"organization_description"`
+	OrganizationWebsite     string `json:"organization_website"`
+	OrganizationEmail       string `json:"organization_email"`
+	OrganizationPhone       string `json:"organization_phone"`
+	OrganizationAddress     string `json:"organization_address"`
+	OrganizationLogoURL     string `json:"organization_logo_url"`
 }
 
 // LoginRequest represents login request
@@ -27,7 +36,7 @@ type AuthResponse struct {
 	Token string       `json:"token"`
 }
 
-// Register handles user registration
+// Register handles user registration with organization creation
 func Register(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -35,20 +44,59 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	models := models.NewModels()
+	m := models.NewModels()
 	ctx := c.Request.Context()
 
 	// Check if user already exists
-	_, err := models.Users.FindByEmail(ctx, req.Email)
+	_, err := m.Users.FindByEmail(ctx, req.Email)
 	if err == nil {
 		c.JSON(http.StatusConflict, gin.H{"error": "User with this email already exists"})
 		return
 	}
 
+	// Generate organization slug if not provided, ensuring uniqueness
+	orgSlug := req.OrganizationSlug
+	if orgSlug == "" {
+		// Auto-generate unique slug
+		generatedSlug, err := m.Organizations.GenerateUniqueSlug(ctx, req.OrganizationName)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate organization slug"})
+			return
+		}
+		orgSlug = generatedSlug
+	} else {
+		// User provided slug - validate it's unique
+		_, err = m.Organizations.FindBySlug(ctx, orgSlug)
+		if err == nil {
+			c.JSON(http.StatusConflict, gin.H{"error": "Organization with this slug already exists. Please choose a different slug."})
+			return
+		}
+	}
+
+	// Start transaction (we'll use a simple approach - create user first, then org, then member)
 	// Create user
-	user, err := models.Users.Create(ctx, req.Email, req.Name, req.Password)
+	user, err := m.Users.Create(ctx, req.Email, req.Name, req.Password)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+		return
+	}
+
+	// Create organization
+	org, err := m.Organizations.Create(ctx, req.OrganizationName, orgSlug, req.OrganizationDescription,
+		req.OrganizationLogoURL, req.OrganizationWebsite, req.OrganizationEmail, req.OrganizationPhone, req.OrganizationAddress)
+	if err != nil {
+		if err == models.ErrSlugAlreadyExists {
+			c.JSON(http.StatusConflict, gin.H{"error": "Organization slug already exists. Please choose a different name."})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create organization"})
+		return
+	}
+
+	// Add user as owner of the organization
+	_, err = m.Organizations.AddMember(ctx, org.ID, user.ID, "owner", "active")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add user to organization"})
 		return
 	}
 
@@ -73,11 +121,11 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	models := models.NewModels()
+	m := models.NewModels()
 	ctx := c.Request.Context()
 
 	// Authenticate user
-	user, err := models.Users.Authenticate(ctx, req.Email, req.Password)
+	user, err := m.Users.Authenticate(ctx, req.Email, req.Password)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 		return
@@ -104,11 +152,11 @@ func Me(c *gin.Context) {
 		return
 	}
 
-	models := models.NewModels()
+	m := models.NewModels()
 	ctx := c.Request.Context()
 
 	id := userID.(int64)
-	user, err := models.Users.FindByID(ctx, id)
+	user, err := m.Users.FindByID(ctx, id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
@@ -143,4 +191,3 @@ func RefreshToken(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"token": token})
 }
-

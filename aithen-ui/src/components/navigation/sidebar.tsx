@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { getChats, createChat, type Chat } from '@/api';
+import { Plus, X, MessageCircle, Loader2 } from 'lucide-react';
 
 interface SidebarProps {
   onNewChat?: () => void;
@@ -56,8 +57,12 @@ export default function Sidebar({ onNewChat, onSettingsClick, isOpen = false, on
         onNewChat();
       }
       
-      // Redirect to the new chat page
-      router.push(`/chat/${chatId}`);
+      // Get organization slug from pathname
+      const orgMatch = pathname.match(/^\/org\/([^/]+)/);
+      const orgSlug = orgMatch ? orgMatch[1] : '';
+      
+      // Redirect to the new chat page with org slug
+      router.push(orgSlug ? `/org/${orgSlug}/chat/${chatId}` : `/chat/${chatId}`);
       
       // Refresh chat list
       await loadChats();
@@ -69,8 +74,12 @@ export default function Sidebar({ onNewChat, onSettingsClick, isOpen = false, on
   };
 
   const handleChatClick = (chatId: string) => {
+    // Get organization slug from pathname
+    const orgMatch = pathname.match(/^\/org\/([^/]+)/);
+    const orgSlug = orgMatch ? orgMatch[1] : '';
+    
     // Chat IDs are always strings to preserve precision (handled by backend JSON marshaling)
-    router.push(`/chat/${chatId}`);
+    router.push(orgSlug ? `/org/${orgSlug}/chat/${chatId}` : `/chat/${chatId}`);
     if (onToggle) {
       onToggle(); // Close sidebar on mobile
     }
@@ -129,17 +138,12 @@ export default function Sidebar({ onNewChat, onSettingsClick, isOpen = false, on
             >
               {isCreatingChat ? (
                 <>
-                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
+                  <Loader2 className="animate-spin h-4 w-4" />
                   <span>Creating...</span>
                 </>
               ) : (
                 <>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
+                  <Plus className="w-4 h-4" />
                   <span>New Chat</span>
                 </>
               )}
@@ -150,9 +154,7 @@ export default function Sidebar({ onNewChat, onSettingsClick, isOpen = false, on
                 className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100/80 dark:hover:bg-gray-800/80 transition-colors"
                 aria-label="Close sidebar"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <X className="w-4 h-4" />
               </button>
             )}
           </div>
@@ -171,7 +173,11 @@ export default function Sidebar({ onNewChat, onSettingsClick, isOpen = false, on
             ) : chats && Array.isArray(chats) && chats.length > 0 ? (
               <div className="space-y-0.5">
                 {chats.map((chat) => {
-                  const isActive = pathname === `/chat/${chat.id}`;
+                  // Get organization slug from pathname
+                  const orgMatch = pathname.match(/^\/org\/([^/]+)/);
+                  const orgSlug = orgMatch ? orgMatch[1] : '';
+                  const chatPath = orgSlug ? `/org/${orgSlug}/chat/${chat.id}` : `/chat/${chat.id}`;
+                  const isActive = pathname === chatPath;
                   return (
                     <button
                       key={chat.id}
@@ -182,18 +188,13 @@ export default function Sidebar({ onNewChat, onSettingsClick, isOpen = false, on
                           : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100/80 dark:hover:bg-gray-800/80'
                       }`}
                     >
-                      <svg 
+                      <MessageCircle 
                         className={`w-3.5 h-3.5 transition-colors ${
                           isActive
                             ? 'text-[var(--color-aithen-teal)] dark:text-[var(--color-aithen-teal-light)]'
                             : 'text-gray-400 group-hover:text-[var(--color-aithen-teal)]'
                         }`} 
-                        fill="none" 
-                        stroke="currentColor" 
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                      </svg>
+                      />
                       <span className="flex-1 truncate">{chat.title}</span>
                     </button>
                   );
@@ -201,19 +202,7 @@ export default function Sidebar({ onNewChat, onSettingsClick, isOpen = false, on
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-10 px-4">
-                <svg 
-                  className="w-10 h-10 text-gray-300 dark:text-gray-600 mb-3" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={1.5} 
-                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" 
-                  />
-                </svg>
+                <MessageCircle className="w-10 h-10 text-gray-300 dark:text-gray-600 mb-3" />
                 <p className="text-sm text-gray-500 dark:text-gray-400 text-center mb-1.5">
                   No chat history yet
                 </p>

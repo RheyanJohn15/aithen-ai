@@ -7,6 +7,8 @@ import { signout } from '../../api';
 import { useTheme } from '../theme/theme-provider';
 import { getUserSession, clearUserSession } from '@/lib/session';
 import type { User } from '@/api/authApi';
+import { useRouter } from 'next/navigation';
+import { Menu, Moon, Sun, User as UserIcon, Settings, LogOut } from 'lucide-react';
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -19,7 +21,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-
+  const router = useRouter(); 
   // Load user data from session storage on mount
   useEffect(() => {
     const sessionUser = getUserSession();
@@ -48,13 +50,20 @@ export default function Header({ onMenuClick }: HeaderProps) {
       await signout();
       // Clear user session from session storage
       clearUserSession();
-      // Redirect to login page or reload
-      window.location.href = '/login';
+      // Get organization slug from pathname or use default
+      const pathname = window.location.pathname;
+      const orgMatch = pathname.match(/^\/org\/([^/]+)/);
+      const orgSlug = orgMatch ? orgMatch[1] : '';
+      // Redirect to login page with org slug
+      window.location.href = orgSlug ? `/org/${orgSlug}/login` : '/login';
     } catch (error) {
       console.error('Logout failed:', error);
       // Still clear session and redirect even if server logout fails
       clearUserSession();
-      window.location.href = '/login';
+      const pathname = window.location.pathname;
+      const orgMatch = pathname.match(/^\/org\/([^/]+)/);
+      const orgSlug = orgMatch ? orgMatch[1] : '';
+      window.location.href = orgSlug ? `/org/${orgSlug}/login` : '/login';
     }
   };
 
@@ -73,9 +82,12 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
   const handleSettings = () => {
     setIsMenuOpen(false);
-    // Navigate to settings page
-    // router.push('/settings');
-    console.log('Navigate to settings');
+    // Get organization slug from pathname or use default
+    const pathname = window.location.pathname;
+    const orgMatch = pathname.match(/^\/org\/([^/]+)/);
+    const orgSlug = orgMatch ? orgMatch[1] : '';
+    // Navigate to settings page with org slug
+    router.push(orgSlug ? `/org/${orgSlug}/settings` : '/settings');
   };
 
   return (
@@ -89,9 +101,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
               className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100/80 dark:hover:bg-gray-800/80 transition-colors"
               aria-label="Toggle sidebar"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
+              <Menu className="w-5 h-5" />
             </button>
           )}
         </div>
@@ -146,15 +156,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
             suppressHydrationWarning
           >
             {theme === 'light' ? (
-              // Moon icon for dark mode
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-              </svg>
+              <Moon className="w-4 h-4" />
             ) : (
-              // Sun icon for light mode
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
+              <Sun className="w-4 h-4" />
             )}
           </button>
 
@@ -186,9 +190,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                   onClick={handleProfile}
                   className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100/80 dark:hover:bg-gray-700/80 transition-colors flex items-center space-x-2"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
+                  <UserIcon className="w-4 h-4" />
                   <span>Profile</span>
                 </button>
 
@@ -196,10 +198,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                   onClick={handleSettings}
                   className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100/80 dark:hover:bg-gray-700/80 transition-colors flex items-center space-x-2"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
+                  <Settings className="w-4 h-4" />
                   <span>Settings</span>
                 </button>
 
@@ -209,9 +208,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                   onClick={handleLogout}
                   className="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100/80 dark:hover:bg-gray-700/80 transition-colors flex items-center space-x-2"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </svg>
+                  <LogOut className="w-4 h-4" />
                   <span>Logout</span>
                 </button>
               </div>

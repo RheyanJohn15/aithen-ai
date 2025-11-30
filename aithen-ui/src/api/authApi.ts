@@ -26,8 +26,16 @@ export interface LoginRequest {
 export interface RegisterRequest {
   email: string;
   password: string;
-  name?: string;
-  [key: string]: any; // Allow additional fields
+  name: string;
+  // Organization fields
+  organization_name: string;
+  organization_slug?: string;
+  organization_description?: string;
+  organization_website?: string;
+  organization_email?: string;
+  organization_phone?: string;
+  organization_address?: string;
+  organization_logo_url?: string;
 }
 
 /**
@@ -47,6 +55,7 @@ export interface User {
 export interface AuthResponse {
   token: string;
   user: User;
+  refreshToken?: string; // Optional refresh token
 }
 
 /**
