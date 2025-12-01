@@ -2,11 +2,11 @@
 
 import { useRef, useEffect, useState } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { useAi } from '../../../hooks/ai/useAi';
-import { getChat } from '../../../api';
-import Header from '../../../components/navigation/header';
-import Sidebar from '../../../components/navigation/sidebar';
-import Message from '../../../components/chat/message';
+import { useAi } from '@/hooks/ai/useAi';
+import { getChat } from '@/api';
+import Header from '@/components/navigation/header';
+import Sidebar from '@/components/navigation/sidebar';
+import Message from '@/components/chat/message';
 import { AlertCircle, Plus, Mic, Send } from 'lucide-react';
 
 // Client-only timestamp component to avoid hydration mismatch
@@ -209,30 +209,30 @@ export default function ChatPage() {
         />
         <div className="flex flex-col flex-1 overflow-hidden">
           <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-          <div className="flex-1 overflow-y-auto flex items-center justify-center p-4">
+          <div className="flex-1 overflow-y-auto flex items-center justify-center p-3 sm:p-4">
             <div className="max-w-2xl w-full">
-              <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800/50 rounded-lg p-4">
-                  <div className="flex items-start space-x-2.5">
-                  <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <h3 className="text-sm font-semibold text-red-800 dark:text-red-200 mb-1.5">
+              <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800/50 rounded-lg p-3 sm:p-4">
+                  <div className="flex items-start space-x-2 sm:space-x-2.5">
+                  <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-xs sm:text-sm font-semibold text-red-800 dark:text-red-200 mb-1 sm:mb-1.5">
                       Failed to Load Chat
                     </h3>
-                    <p className="text-sm text-red-600 dark:text-red-400 mb-3 break-all">
+                    <p className="text-xs sm:text-sm text-red-600 dark:text-red-400 mb-2 sm:mb-3 break-all">
                       {error}
                     </p>
-                    <div className="space-y-1.5 text-xs text-red-500 dark:text-red-500">
+                    <div className="space-y-1 sm:space-y-1.5 text-xs text-red-500 dark:text-red-500">
                       <p><strong>Chat ID:</strong> {chatId}</p>
                       <p><strong>Check console</strong> for more details</p>
                     </div>
-                    <div className="mt-3 flex space-x-2">
+                    <div className="mt-2 sm:mt-3 flex flex-col sm:flex-row gap-2">
                       <button
                         onClick={() => {
                           setError(null);
                           setIsLoadingChat(true);
                           window.location.reload();
                         }}
-                        className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
+                        className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs sm:text-sm font-medium transition-colors"
                       >
                         Retry
                       </button>
@@ -241,7 +241,7 @@ export default function ChatPage() {
                           const companyName = params?.['company-name'] as string || '';
                           router.push(companyName ? `/org/${companyName}` : '/');
                         }}
-                        className="px-3 py-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg text-sm font-medium transition-colors"
+                        className="px-3 py-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg text-xs sm:text-sm font-medium transition-colors"
                       >
                         Go Home
                       </button>
@@ -275,19 +275,19 @@ export default function ChatPage() {
         <div className="flex-1 overflow-y-auto">
         {messages.length === 1 ? (
           // Welcome screen when only initial message
-          <div className="flex flex-col items-center justify-center h-full px-4">
-            <div className="text-center max-w-2xl">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 font-heading">
+          <div className="flex flex-col items-center justify-center h-full px-3 sm:px-4 py-4 sm:py-6">
+            <div className="text-center max-w-2xl w-full">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-2 sm:mb-3 font-heading">
                 {chatTitle || 'Chat'}
               </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-4 sm:mb-6">
                 Continue your conversation
               </p>
             </div>
           </div>
         ) : (
           // Chat messages
-          <div className="max-w-3xl mx-auto px-4 py-4">
+          <div className="max-w-3xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
             {messages.slice(1).map((message, index, array) => {
               const isLast = index === array.length - 1;
               return (
@@ -318,36 +318,36 @@ export default function ChatPage() {
         </div>
 
         {/* Input - ChatGPT style */}
-        <div className="border-t border-gray-200/60 dark:border-gray-700/60 px-4 py-3">
+        <div className="border-t border-gray-200/60 dark:border-gray-700/60 px-3 sm:px-4 py-2.5 sm:py-3">
           <div className="max-w-3xl mx-auto">
           <div className="relative">
             <div className="flex items-center border border-gray-300/60 dark:border-gray-600/60 rounded-xl bg-white dark:bg-gray-800/50 shadow-sm hover:shadow-md transition-shadow">
-              <button className="p-2.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
-                <Plus className="w-4 h-4" />
+              <button className="p-2 sm:p-2.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors flex-shrink-0">
+                <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Ask anything"
-                className="flex-1 resize-none border-0 bg-transparent px-3 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none"
+                className="flex-1 resize-none border-0 bg-transparent px-2 sm:px-3 py-2 sm:py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none min-h-[44px]"
                 rows={1}
                 disabled={isLoading}
               />
-              <div className="flex items-center space-x-1 p-1.5">
+              <div className="flex items-center space-x-0.5 sm:space-x-1 p-1 sm:p-1.5 flex-shrink-0">
                 <button 
                   type="button"
-                  className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="p-1.5 sm:p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
                   aria-label="Voice input"
                 >
-                  <Mic className="w-4 h-4" />
+                  <Mic className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </button>
                 <button
                   type="button"
                   onClick={handleSendMessage}
                   disabled={!input.trim() || isLoading}
                   className={`
-                    p-2 rounded-lg transition-all duration-200
+                    p-1.5 sm:p-2 rounded-lg transition-all duration-200 flex-shrink-0
                     ${!input.trim() || isLoading
                       ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
                       : 'text-white bg-[var(--color-aithen-teal)] hover:bg-[var(--color-aithen-teal-dark)] shadow-sm hover:shadow-md'
@@ -355,12 +355,12 @@ export default function ChatPage() {
                   `}
                   aria-label="Send message"
                 >
-                  <Send className="w-4 h-4" />
+                  <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </button>
               </div>
             </div>
           </div>
-            <div className="text-xs text-gray-500 dark:text-gray-500 mt-1.5 text-center">
+            <div className="text-xs text-gray-500 dark:text-gray-500 mt-1.5 text-center px-2">
               Aithen can make mistakes. Consider checking important information.
             </div>
           </div>

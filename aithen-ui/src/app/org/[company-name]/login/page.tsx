@@ -117,13 +117,13 @@ export default function LoginPage() {
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl"></div>
       </div>
 
-      <div className="max-w-md w-full space-y-4 relative z-10">
+      <div className="max-w-md w-full space-y-3 sm:space-y-4 relative z-10">
         {/* Header with Logo */}
         <div className="text-center space-y-2">
           {isLoadingOrg ? (
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gray-200 dark:bg-gray-700 animate-pulse mb-1" />
+            <div className="inline-flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gray-200 dark:bg-gray-700 animate-pulse mb-1" />
           ) : orgData?.logo_url ? (
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-white dark:bg-gray-800 shadow-md border border-gray-200 dark:border-gray-700 mb-1 overflow-hidden relative">
+            <div className="inline-flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white dark:bg-gray-800 shadow-md border border-gray-200 dark:border-gray-700 mb-1 overflow-hidden relative">
               <Image
                 src={orgData.logo_url}
                 alt={`${orgData.name} logo`}
@@ -138,15 +138,15 @@ export default function LoginPage() {
               />
             </div>
           ) : (
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--color-aithen-teal)] to-[var(--color-aithen-teal-dark)] shadow-md shadow-[var(--color-aithen-teal)]/20 mb-1">
-              <Building2 className="w-6 h-6 text-white" />
+            <div className="inline-flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-[var(--color-aithen-teal)] to-[var(--color-aithen-teal-dark)] shadow-md shadow-[var(--color-aithen-teal)]/20 mb-1">
+              <Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
           )}
           <div>
-            <h1 className="text-lg font-heading font-semibold text-gray-900 dark:text-white mb-1">
+            <h1 className="text-base sm:text-lg font-heading font-semibold text-gray-900 dark:text-white mb-1">
               Welcome Back
             </h1>
-            <p className="text-xs text-gray-600 dark:text-gray-400">
+            <p className="text-xs text-gray-600 dark:text-gray-400 px-2">
               {isLoadingOrg ? (
                 'Loading...'
               ) : orgData?.name ? (
@@ -159,7 +159,7 @@ export default function LoginPage() {
         </div>
 
         {/* Login Form */}
-        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-xl shadow-lg p-5 border border-gray-200/50 dark:border-gray-700/50 hover:shadow-[var(--color-aithen-teal)]/10 transition-all duration-300">
+        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-xl shadow-lg p-4 sm:p-5 border border-gray-200/50 dark:border-gray-700/50 hover:shadow-[var(--color-aithen-teal)]/10 transition-all duration-300">
           <form onSubmit={handleSubmit} className="space-y-3">
             {/* Error Message */}
             {error && (

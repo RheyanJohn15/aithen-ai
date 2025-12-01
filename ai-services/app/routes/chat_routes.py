@@ -17,14 +17,14 @@ MODEL = os.getenv("MODEL", "mistral")
 @router.post("/chat")
 async def chat(req: ChatRequest):
     """Send a conversation to the AI model and return the response."""
-    system_prompt = None
-    if req.personality:
-        p = store.load(req.personality)
-        if not p:
-            raise HTTPException(status_code=404, detail="Personality not found")
-        system_prompt = p.get("system_prompt")
+    # Default to aithen_core if no personality specified
+    personality_id = req.personality or "aithen_core"
+    p = store.load(personality_id)
+    if not p:
+        raise HTTPException(status_code=404, detail=f"Personality '{personality_id}' not found")
+    system_prompt = p.get("system_prompt")
 
-    # Build messages for Ollama
+    # Build messages for Ollama - always include system prompt
     messages = []
     if system_prompt:
         messages.append({"role": "system", "content": system_prompt})
@@ -54,14 +54,14 @@ async def chat(req: ChatRequest):
 @router.post("/chat/stream")
 async def chat_stream(req: ChatRequest):
     """Stream a conversation to the AI model and return the response as Server-Sent Events."""
-    system_prompt = None
-    if req.personality:
-        p = store.load(req.personality)
-        if not p:
-            raise HTTPException(status_code=404, detail="Personality not found")
-        system_prompt = p.get("system_prompt")
+    # Default to aithen_core if no personality specified
+    personality_id = req.personality or "aithen_core"
+    p = store.load(personality_id)
+    if not p:
+        raise HTTPException(status_code=404, detail=f"Personality '{personality_id}' not found")
+    system_prompt = p.get("system_prompt")
 
-    # Build messages for Ollama
+    # Build messages for Ollama - always include system prompt
     messages = []
     if system_prompt:
         messages.append({"role": "system", "content": system_prompt})

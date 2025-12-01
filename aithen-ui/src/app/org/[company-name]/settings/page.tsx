@@ -61,14 +61,14 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="max-w-4xl mx-auto p-3 sm:p-4 md:p-6">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-gray-900 dark:text-white mb-1">General Settings</h1>
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-1">General Settings</h1>
         <p className="text-xs text-gray-500 dark:text-gray-400">Manage application preferences and organization settings</p>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Appearance */}
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
           <div className="flex items-center space-x-2 mb-4">
@@ -228,48 +228,48 @@ export default function SettingsPage() {
         </div>
 
         {/* Quick Actions */}
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <div className="flex items-center space-x-2 mb-4">
-            <Zap className="w-4 h-4 text-[var(--color-aithen-teal)]" />
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Quick Actions</h2>
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 sm:p-4">
+          <div className="flex items-center space-x-2 mb-3 sm:mb-4">
+            <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--color-aithen-teal)]" />
+            <h2 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">Quick Actions</h2>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Button variant="outline" className="justify-start">
-              <Calendar className="w-3.5 h-3.5 mr-2" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+            <Button variant="outline" className="justify-start w-full">
+              <Calendar className="w-3.5 h-3.5 mr-2 flex-shrink-0" />
               Export Data
             </Button>
-            <Button variant="outline" className="justify-start">
-              <FileText className="w-3.5 h-3.5 mr-2" />
+            <Button variant="outline" className="justify-start w-full">
+              <FileText className="w-3.5 h-3.5 mr-2 flex-shrink-0" />
               Download Reports
             </Button>
-            <Button variant="outline" className="justify-start">
-              <Mail className="w-3.5 h-3.5 mr-2" />
+            <Button variant="outline" className="justify-start w-full">
+              <Mail className="w-3.5 h-3.5 mr-2 flex-shrink-0" />
               Contact Support
             </Button>
-            <Button variant="outline" className="justify-start">
-              <Settings className="w-3.5 h-3.5 mr-2" />
+            <Button variant="outline" className="justify-start w-full">
+              <Settings className="w-3.5 h-3.5 mr-2 flex-shrink-0" />
               Reset to Defaults
             </Button>
           </div>
         </div>
 
         {/* Account Info */}
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Account Information</h2>
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 sm:p-4">
+          <h2 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Account Information</h2>
           <div className="space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Account ID</p>
-                <p className="text-sm font-medium text-gray-900 dark:text-white">acc_1234567890</p>
+                <p className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white break-all">acc_1234567890</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Member Since</p>
-                <p className="text-sm font-medium text-gray-900 dark:text-white">January 1, 2024</p>
+                <p className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white">January 1, 2024</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Last Login</p>
-                <p className="text-sm font-medium text-gray-900 dark:text-white">2 hours ago</p>
+                <p className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white">2 hours ago</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Account Status</p>
@@ -282,9 +282,9 @@ export default function SettingsPage() {
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end space-x-1.5">
-          <Button variant="outline">Cancel</Button>
-          <Button variant="primary" onClick={handleSave}>Save Changes</Button>
+        <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-1.5">
+          <Button variant="outline" className="w-full sm:w-auto">Cancel</Button>
+          <Button variant="primary" onClick={handleSave} className="w-full sm:w-auto">Save Changes</Button>
         </div>
       </div>
     </div>

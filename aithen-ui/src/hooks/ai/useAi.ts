@@ -6,8 +6,9 @@ import {
   getBaseUrl,
   type ChatMessage as ApiChatMessage,
   type Personality as ApiPersonality,
-} from '../../api';
-import { addMessage } from '../../api/chatApi';
+} from '@/api';
+import { addMessage } from '@/api/chatApi';
+import { getUserSession } from '@/lib/session';
 
 // Helper to check if using production API
 const isUsingProdApi = (): boolean => {
@@ -53,13 +54,20 @@ export interface ApiStatus {
   message?: string;
 }
 
+// Helper function to get initial greeting
+const getInitialGreeting = (): string => {
+  const user = getUserSession();
+  const userName = user?.name || '';
+  return userName ? `Hi ${userName}, how may I help you today?` : 'Hi, how may I help you today?';
+};
+
 // Main AI hook
 export const useAi = () => {
   const [messages, setMessagesState] = useState<Message[]>([
     {
       id: '1',
       role: 'assistant',
-      content: 'Hello! I\'m Aithen, your AI assistant. How can I help you today?',
+      content: getInitialGreeting(),
       timestamp: new Date()
     }
   ]);
@@ -216,7 +224,7 @@ export const useAi = () => {
     setMessagesState([{
       id: '1',
       role: 'assistant',
-      content: 'Hello! I\'m Aithen, your AI assistant. How can I help you today?',
+      content: getInitialGreeting(),
       timestamp: new Date()
     }]);
   }, []);

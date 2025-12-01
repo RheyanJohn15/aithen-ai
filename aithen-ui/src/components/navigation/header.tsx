@@ -2,9 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
-import { useAi, useApiConfig } from '../../hooks/ai/useAi';
-import { signout } from '../../api';
-import { useTheme } from '../theme/theme-provider';
+import { useAi, useApiConfig } from '@/hooks/ai/useAi';
+import { signout } from '@/api';
+import { useTheme } from '@/components/theme/theme-provider';
 import { getUserSession, clearUserSession } from '@/lib/session';
 import type { User } from '@/api/authApi';
 import { useRouter } from 'next/navigation';

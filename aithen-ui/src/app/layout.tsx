@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Exo_2, Inter } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "../components/theme/theme-provider";
+import { ThemeProvider } from "@/components/theme/theme-provider";
 
 const exo2 = Exo_2({
   subsets: ["latin"],

@@ -132,8 +132,9 @@ export default function RegisterPage() {
         setUserSession(response.data.user);
       }
       
-      // Redirect to home page
-      router.push('/');
+      // Redirect to organization chat page
+      const orgSlug = registerData.organization_slug || generateSlug(registerData.organization_name);
+      router.push(`/org/${orgSlug}/chat`);
       router.refresh();
     } catch (err: any) {
       // Handle error
@@ -174,17 +175,17 @@ export default function RegisterPage() {
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl"></div>
       </div>
 
-      <div className="max-w-2xl w-full space-y-4 relative z-10">
+      <div className="max-w-2xl w-full space-y-3 sm:space-y-4 relative z-10">
         {/* Header with Logo */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--color-aithen-teal)] to-[var(--color-aithen-teal-dark)] shadow-md shadow-[var(--color-aithen-teal)]/20 mb-1">
-            <UserPlus className="w-6 h-6 text-white" />
+          <div className="inline-flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-[var(--color-aithen-teal)] to-[var(--color-aithen-teal-dark)] shadow-md shadow-[var(--color-aithen-teal)]/20 mb-1">
+            <UserPlus className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-lg font-heading font-semibold text-gray-900 dark:text-white mb-1">
+            <h1 className="text-base sm:text-lg font-heading font-semibold text-gray-900 dark:text-white mb-1">
               {currentStep === 'user' ? 'Create Account' : 'Set Up Your Organization'}
             </h1>
-            <p className="text-xs text-gray-600 dark:text-gray-400">
+            <p className="text-xs text-gray-600 dark:text-gray-400 px-2">
               {currentStep === 'user' 
                 ? 'Join Aithen AI and start your journey'
                 : 'Complete your organization profile to get started'}
@@ -193,13 +194,13 @@ export default function RegisterPage() {
         </div>
 
         {/* Progress Indicator */}
-        <div className="flex items-center justify-center space-x-1.5">
+        <div className="flex items-center justify-center space-x-1.5 px-4">
           <div className={`h-1 rounded-full transition-all duration-300 ${currentStep === 'user' ? 'w-6 bg-[var(--color-aithen-teal)]' : 'w-3 bg-gray-300 dark:bg-gray-600'}`} />
           <div className={`h-1 rounded-full transition-all duration-300 ${currentStep === 'organization' ? 'w-6 bg-[var(--color-aithen-teal)]' : 'w-3 bg-gray-300 dark:bg-gray-600'}`} />
         </div>
 
         {/* Register Form */}
-        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-xl shadow-lg p-5 border border-gray-200/50 dark:border-gray-700/50 hover:shadow-[var(--color-aithen-teal)]/10 transition-all duration-300">
+        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-xl shadow-lg p-4 sm:p-5 border border-gray-200/50 dark:border-gray-700/50 hover:shadow-[var(--color-aithen-teal)]/10 transition-all duration-300">
           {currentStep === 'user' ? (
             <form onSubmit={handleUserSubmit} className="space-y-3">
               {/* Error Message */}
@@ -550,7 +551,7 @@ export default function RegisterPage() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setCurrentStep('user')}
@@ -610,7 +611,7 @@ export default function RegisterPage() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-xs text-gray-500 dark:text-gray-500">
+        <p className="text-center text-xs text-gray-500 dark:text-gray-500 px-2">
           By creating an account, you agree to our{' '}
           <a href="#" className="text-[var(--color-aithen-teal)] hover:underline">Terms of Service</a>
           {' '}and{' '}

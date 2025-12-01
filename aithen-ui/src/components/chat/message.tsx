@@ -6,7 +6,7 @@ import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { useTheme } from '../theme/theme-provider';
+import { useTheme } from '@/components/theme/theme-provider';
 
 export interface MessageProps {
   id: string;
