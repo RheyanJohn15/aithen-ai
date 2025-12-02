@@ -289,8 +289,11 @@ Add SSL certificates to nginx configuration:
    ```bash
    # Check Ollama status
    docker-compose logs ollama
-   # Verify model is downloaded
+   # Verify models are downloaded
    docker-compose exec ollama ollama list
+   # Install required models if missing
+   docker-compose exec ollama ollama pull mistral
+   docker-compose exec ollama ollama pull nomic-embed-text
    ```
 
 4. **Build Failures**

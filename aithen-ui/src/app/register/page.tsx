@@ -235,6 +235,7 @@ export default function RegisterPage() {
                     }`}
                     placeholder="John Doe"
                     disabled={isLoading}
+                    suppressHydrationWarning
                   />
                 </div>
                 {validationErrors.name && (
@@ -269,6 +270,7 @@ export default function RegisterPage() {
                     }`}
                     placeholder="you@example.com"
                     disabled={isLoading}
+                    suppressHydrationWarning
                   />
                 </div>
                 {validationErrors.email && (
@@ -303,6 +305,7 @@ export default function RegisterPage() {
                     }`}
                     placeholder="At least 6 characters"
                     disabled={isLoading}
+                    suppressHydrationWarning
                   />
                 </div>
                 {validationErrors.password && (
@@ -337,6 +340,7 @@ export default function RegisterPage() {
                     }`}
                     placeholder="Confirm your password"
                     disabled={isLoading}
+                    suppressHydrationWarning
                   />
                 </div>
                 {validationErrors.confirmPassword && (
@@ -390,6 +394,7 @@ export default function RegisterPage() {
                     }`}
                     placeholder="Acme Corporation"
                     disabled={isLoading}
+                    suppressHydrationWarning
                   />
                 </div>
                 {validationErrors.organization_name && (
@@ -418,6 +423,7 @@ export default function RegisterPage() {
                     className="w-full pl-24 pr-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700/50 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[var(--color-aithen-teal)]/30 focus:border-[var(--color-aithen-teal)] transition-all duration-200"
                     placeholder="acme-corp"
                     disabled={isLoading}
+                    suppressHydrationWarning
                   />
                 </div>
                 <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
@@ -439,6 +445,7 @@ export default function RegisterPage() {
                   className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700/50 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[var(--color-aithen-teal)]/30 focus:border-[var(--color-aithen-teal)] transition-all duration-200 resize-none"
                   placeholder="Brief description of your organization..."
                   disabled={isLoading}
+                  suppressHydrationWarning
                 />
               </div>
 
@@ -464,6 +471,7 @@ export default function RegisterPage() {
                     }`}
                     placeholder="https://example.com"
                     disabled={isLoading}
+                    suppressHydrationWarning
                   />
                 </div>
                 {validationErrors.organization_website && (
@@ -496,6 +504,7 @@ export default function RegisterPage() {
                     }`}
                     placeholder="contact@example.com"
                     disabled={isLoading}
+                    suppressHydrationWarning
                   />
                 </div>
                 {validationErrors.organization_email && (
@@ -524,6 +533,7 @@ export default function RegisterPage() {
                     className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700/50 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[var(--color-aithen-teal)]/30 focus:border-[var(--color-aithen-teal)] transition-all duration-200"
                     placeholder="+1 (555) 123-4567"
                     disabled={isLoading}
+                    suppressHydrationWarning
                   />
                 </div>
               </div>
@@ -546,6 +556,7 @@ export default function RegisterPage() {
                     className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700/50 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[var(--color-aithen-teal)]/30 focus:border-[var(--color-aithen-teal)] transition-all duration-200 resize-none"
                     placeholder="Street address, City, State, ZIP"
                     disabled={isLoading}
+                    suppressHydrationWarning
                   />
                 </div>
               </div>

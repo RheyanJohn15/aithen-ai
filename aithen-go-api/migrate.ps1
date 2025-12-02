@@ -43,15 +43,26 @@ switch ($Command.ToLower()) {
         go run cmd/migrate/main.go -command create -name $Name
     }
     "force" {
-        if ($Version -lt 0) {
+        # For force command, treat the second positional parameter as version
+        $forceVersion = $Version
+        if ($forceVersion -lt 0 -and -not [string]::IsNullOrWhiteSpace($Name)) {
+            # Try to parse Name as version number if Version wasn't provided
+            if ([int]::TryParse($Name, [ref]$forceVersion)) {
+                # Successfully parsed Name as version
+            } else {
+                $forceVersion = -1
+            }
+        }
+        
+        if ($forceVersion -lt 0) {
             Write-Host "❌ Version number is required" -ForegroundColor Red
-            Write-Host "Usage: .\migrate.ps1 force <version_number>"
-            Write-Host "Example: .\migrate.ps1 force 2"
+            Write-Host "Usage: .\migrate.ps1 force <version_number>" -ForegroundColor Yellow
+            Write-Host "Example: .\migrate.ps1 force 10" -ForegroundColor Yellow
             Write-Host ""
             Write-Host "This command fixes 'dirty database version' errors by forcing the version."
             exit 1
         }
-        go run cmd/migrate/main.go -command force -version $Version
+        go run cmd/migrate/main.go -command force -version $forceVersion
     }
     default {
         Write-Host "Unknown command: $Command" -ForegroundColor Red

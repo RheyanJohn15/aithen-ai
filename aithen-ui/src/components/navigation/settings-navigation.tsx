@@ -86,6 +86,7 @@ export default function SettingsNavigation() {
             onClick={handleBack}
             className="flex items-center space-x-1.5 px-2 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-gray-800/80 rounded-lg transition-colors min-w-[44px]"
             aria-label="Back to dashboard"
+            suppressHydrationWarning
           >
             <ArrowLeft className="w-3.5 h-3.5 flex-shrink-0" />
             <span>Back</span>
@@ -101,6 +102,7 @@ export default function SettingsNavigation() {
             onClick={handleBack}
             className="hidden sm:flex items-center space-x-1.5 px-3 py-2.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-gray-800/80 rounded-lg transition-colors border border-transparent hover:border-gray-200/50 dark:hover:border-gray-700/50 flex-shrink-0"
             aria-label="Back to dashboard"
+            suppressHydrationWarning
           >
             <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
             <span className="hidden md:inline">Back</span>

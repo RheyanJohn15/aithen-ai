@@ -2,6 +2,7 @@ package router
 
 import (
 	"github.com/aithen/go-api/internal/handlers"
+	"github.com/aithen/go-api/internal/websocket"
 	"github.com/gin-gonic/gin"
 )
 
@@ -17,8 +18,11 @@ func SetupRoutes(r *gin.Engine) {
 	// Setup public authentication routes first (before middleware)
 	SetupAuthRoutes(api)
 
+	// Setup WebSocket routes before middleware (they handle their own auth)
+	SetupWebSocketRoutes(api)
+
 	// Apply authentication middleware to all API routes
-	// The middleware will skip auth for /api/auth/login and /api/auth/register
+	// The middleware will skip auth for /api/auth/login, /api/auth/register, and /api/ws
 	ApplyAuthMiddleware(api)
 
 	// All routes below require authentication
@@ -37,6 +41,9 @@ func SetupRoutes(r *gin.Engine) {
 
 		// Organization management routes (future expansion)
 		SetupOrganizationRoutes(api)
+
+		// Knowledge base management routes
+		SetupKnowledgeBaseRoutes(api)
 	}
 }
 
@@ -47,4 +54,12 @@ func setupPublicRoutes(r *gin.Engine) {
 
 	// Public organization routes
 	SetupPublicOrganizationRoutes(r)
+}
+
+// SetupWebSocketRoutes sets up WebSocket routes
+func SetupWebSocketRoutes(api *gin.RouterGroup) {
+	hub := websocket.NewHub()
+	go hub.Run()
+
+	api.GET("/ws", websocket.HandleWebSocket(hub))
 }

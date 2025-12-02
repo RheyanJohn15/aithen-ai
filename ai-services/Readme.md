@@ -1,21 +1,40 @@
 # Aithen AI Service
 
-A FastAPI microservice that provides AI chat capabilities with streaming support, powered by Ollama and Mistral 7B. Features dynamic personality system and real-time streaming responses for seamless Laravel backend integration.
+A FastAPI microservice that provides AI chat capabilities with streaming support and knowledge base training, powered by Ollama. Features dynamic personality system, real-time streaming responses, and vector embedding generation for knowledge base management.
 
 ## 🚀 Features
 
 - **Real-time Streaming**: Multiple streaming endpoints for different use cases
 - **Dynamic Personalities**: JSON-based personality system with customizable AI behaviors
-- **Laravel Integration**: Optimized for Laravel backend consumption
-- **Modular Architecture**: Clean separation of concerns with dedicated route modules
+- **Knowledge Base Training**: Process files, generate embeddings, and store in PostgreSQL with pgvector
+- **File Processing**: Support for PDF, DOCX, Excel, and text files
+- **Vector Embeddings**: Generate embeddings using Ollama's nomic-embed-text model
+- **Queue-based Training**: Chunked training jobs with concurrent processing
 - **Docker Support**: Production-ready containerization
 - **Health Checks**: Built-in health monitoring
-- **Security**: Non-root user execution and proper environment isolation
+
+## 🏗️ Architecture
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Next.js UI    │    │    Go API       │    │   AI Service    │
+│   (Port 3000)   │◄──►│   (Port 8080)   │◄──►│   (Port 8000)   │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│     Redis       │    │   PostgreSQL    │    │     Ollama      │
+│   (Port 6379)   │    │  + pgvector     │    │   (Port 11434)  │
+└─────────────────┘    │   (Port 5432)   │    └─────────────────┘
+                       └─────────────────┘
+```
 
 ## 📋 Prerequisites
 
 - **Python 3.11+**
-- **Ollama** with Mistral model installed
+- **Ollama** with Mistral and embedding models installed
+- **PostgreSQL** with pgvector extension enabled
 - **Docker** (optional, for containerized deployment)
 
 ## 🛠️ Installation
@@ -38,13 +57,48 @@ A FastAPI microservice that provides AI chat capabilities with streaming support
    pip install -r requirements.txt
    ```
 
-4. **Start Ollama service:**
+4. **Set up PostgreSQL with pgvector:**
+   
+   **Option A: Using WSL (Recommended for Windows)**
+   
+   See detailed instructions in `docs/pg-vector-installation.md`
+   
+   **Option B: Using Docker**
+   ```bash
+   docker run -d \
+     --name aithen-postgres \
+     -e POSTGRES_PASSWORD=your_password \
+     -e POSTGRES_DB=aithen_db \
+     -p 5432:5432 \
+     pgvector/pgvector:pg16
+   ```
+   
+   Then enable the extension:
+   ```bash
+   docker exec -it aithen-postgres psql -U postgres -d aithen_db
+   ```
+   ```sql
+   CREATE EXTENSION IF NOT EXISTS vector;
+   ```
+
+5. **Start Ollama service and install required models:**
    ```bash
    ollama serve
    ollama pull mistral
+   ollama pull nomic-embed-text
    ```
 
-5. **Run the AI service:**
+6. **Configure environment variables:**
+   
+   Create a `.env` file or set environment variables:
+   ```bash
+   OLLAMA_URL=http://localhost:11434
+   EMBEDDING_MODEL=nomic-embed-text
+   CHUNK_SIZE=1000
+   CHUNK_OVERLAP=200
+   ```
+
+7. **Run the AI service:**
    ```bash
    uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
    ```
@@ -57,34 +111,36 @@ A FastAPI microservice that provides AI chat capabilities with streaming support
    ```
 
 2. **Run with Docker Compose (recommended):**
-   ```yaml
-   # docker-compose.yml
-   version: '3.8'
-   services:
-     ai-service:
-       build: .
-       ports:
-         - "8000:8000"
-       environment:
-         - OLLAMA_URL=http://host.docker.internal:11434
-         - MODEL=mistral
-       depends_on:
-         - ollama
-     
-     ollama:
-       image: ollama/ollama
-       ports:
-         - "11434:11434"
-       volumes:
-         - ollama_data:/root/.ollama
    
-   volumes:
-     ollama_data:
+   The service is included in the main `docker-compose.yml`:
+   ```yaml
+   ai-service:
+     build: ./ai-services
+     ports:
+       - "8000:8000"
+     environment:
+       - OLLAMA_URL=http://ollama:11434
+       - MODEL=mistral
+       - EMBEDDING_MODEL=nomic-embed-text
+     depends_on:
+       ollama:
+         condition: service_healthy
+   
+   ollama:
+     image: ollama/ollama:latest
+     ports:
+       - "11434:11434"
+     volumes:
+       - ollama_data:/root/.ollama
    ```
 
 3. **Or run standalone:**
    ```bash
-   docker run -p 8000:8000 -e OLLAMA_URL=http://host.docker.internal:11434 aithen-ai-service
+   docker run -p 8000:8000 \
+     -e OLLAMA_URL=http://host.docker.internal:11434 \
+     -e MODEL=mistral \
+     -e EMBEDDING_MODEL=nomic-embed-text \
+     aithen-ai-service
    ```
 
 ## 🔌 API Endpoints
@@ -96,6 +152,12 @@ A FastAPI microservice that provides AI chat capabilities with streaming support
 | `/chat` | POST | Main chat endpoint with streaming toggle | Optional |
 | `/chat/stream` | POST | Dedicated Server-Sent Events streaming | Yes |
 | `/api/chat/stream` | POST | Legacy streaming endpoint | Yes |
+
+### Training Endpoints
+
+| Endpoint | Method | Description | Streaming |
+|----------|--------|-------------|-----------|
+| `/training/stream` | POST | Stream training progress with file-by-file details | Yes |
 
 ### Personality Management
 
@@ -149,6 +211,76 @@ curl -X POST http://localhost:8000/chat/stream \
   }'
 ```
 
+### Training Knowledge Base
+
+```bash
+curl -X POST http://localhost:8000/training/stream \
+  -H "Content-Type: application/json" \
+  -d '{
+    "knowledge_base_id": "123456789",
+    "version_id": "987654321",
+    "files": [
+      {
+        "id": "file123",
+        "name": "document.pdf",
+        "path": "/path/to/document.pdf",
+        "mime_type": "application/pdf",
+        "size": 1024000
+      }
+    ],
+    "db_config": {
+      "host": "localhost",
+      "port": "5432",
+      "user": "postgres",
+      "password": "password",
+      "dbname": "aithen_db"
+    }
+  }'
+```
+
+## 🗄️ Vector Database (PostgreSQL + pgvector)
+
+### Setup
+
+The AI service stores embeddings in PostgreSQL using the pgvector extension. Ensure PostgreSQL has pgvector installed:
+
+**Check if pgvector is installed:**
+```sql
+SELECT * FROM pg_extension WHERE extname = 'vector';
+```
+
+**Enable pgvector (if not already enabled):**
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+### Embedding Storage
+
+Embeddings are stored in the `knowledge_base_embeddings` table with the following structure:
+
+- **id**: Unique identifier (BIGINT)
+- **knowledge_base_id**: Reference to knowledge base (BIGINT)
+- **knowledge_base_version_id**: Reference to version (BIGINT)
+- **knowledge_base_file_id**: Reference to file (BIGINT)
+- **chunk_index**: Index of chunk within file (INTEGER)
+- **chunk_text**: Text content of chunk (TEXT)
+- **embedding**: Vector embedding (vector(1536))
+- **metadata**: Additional metadata (JSONB)
+
+### Vector Search
+
+The embeddings use 1536-dimensional vectors (compatible with OpenAI embeddings). Vector similarity search can be performed using PostgreSQL's vector operators:
+
+```sql
+-- Cosine similarity search
+SELECT chunk_text, 
+       1 - (embedding <=> query_embedding::vector) AS similarity
+FROM knowledge_base_embeddings
+WHERE knowledge_base_version_id = $1
+ORDER BY embedding <=> query_embedding::vector
+LIMIT 10;
+```
+
 ## 🎭 Personality System
 
 ### Available Personalities
@@ -193,59 +325,27 @@ curl -X POST http://localhost:8000/personalities \
 }
 ```
 
-## 🔧 Laravel Integration
+## 🔧 Integration with Go API
 
-### Basic Controller Method
+The Go API (`aithen-go-api`) acts as the main backend and proxies requests to this AI service:
 
-```php
-public function streamChat(Request $request)
-{
-    $response = Http::timeout(60)->post('http://localhost:8000/chat', [
-        'messages' => $request->input('messages', []),
-        'personality' => $request->input('personality'),
-        'stream' => true
-    ]);
-    
-    return response()->stream(function () use ($response) {
-        foreach ($response->getBody() as $chunk) {
-            echo $chunk;
-            flush();
-        }
-    }, 200, [
-        'Content-Type' => 'text/plain; charset=utf-8',
-        'Cache-Control' => 'no-cache',
-        'Connection' => 'keep-alive',
-    ]);
-}
+### Request Flow
+
+```
+Frontend (Next.js) → Go API (Port 8080) → AI Service (Port 8000) → Ollama
 ```
 
-### Frontend JavaScript
+### Configuration
 
-```javascript
-async function streamChat(messages, personality = null) {
-    const response = await fetch('/api/chat/stream', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            messages: messages,
-            personality: personality,
-            stream: true
-        })
-    });
+The Go API connects to the AI service using the `AI_SERVICE_URL` environment variable:
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        
-        const chunk = decoder.decode(value);
-        // Update UI with chunk
-        document.getElementById('response').innerHTML += chunk;
-    }
-}
+```env
+AI_SERVICE_URL=http://localhost:8000
 ```
+
+### Training Integration
+
+The Go API manages training jobs through a queue system and calls the AI service's `/training/stream` endpoint. The AI service processes files, generates embeddings, and stores them directly in PostgreSQL.
 
 ## ⚙️ Configuration
 
@@ -255,6 +355,9 @@ async function streamChat(messages, personality = null) {
 |----------|---------|-------------|
 | `OLLAMA_URL` | `http://localhost:11434` | Ollama service URL |
 | `MODEL` | `mistral` | Default AI model to use |
+| `EMBEDDING_MODEL` | `nomic-embed-text` | Embedding model for knowledge bases |
+| `CHUNK_SIZE` | `1000` | Characters per chunk for text processing |
+| `CHUNK_OVERLAP` | `200` | Overlap between chunks |
 | `PORT` | `8000` | Service port |
 
 ### Docker Environment
@@ -263,6 +366,9 @@ async function streamChat(messages, personality = null) {
 docker run -p 8000:8000 \
   -e OLLAMA_URL=http://host.docker.internal:11434 \
   -e MODEL=mistral \
+  -e EMBEDDING_MODEL=nomic-embed-text \
+  -e CHUNK_SIZE=1000 \
+  -e CHUNK_OVERLAP=200 \
   aithen-ai-service
 ```
 
@@ -278,6 +384,16 @@ curl http://localhost:8000/
 
 ```bash
 curl http://localhost:8000/personalities
+```
+
+### Test Embedding Generation
+
+```bash
+curl -X POST http://localhost:8000/api/embeddings \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": "This is a test text for embedding generation"
+  }'
 ```
 
 ### Interactive Documentation
@@ -297,6 +413,7 @@ docker run -p 8000:8000 aithen-ai-service
 docker run -p 8000:8000 \
   -e OLLAMA_URL=http://your-ollama-host:11434 \
   -e MODEL=llama2 \
+  -e EMBEDDING_MODEL=nomic-embed-text \
   aithen-ai-service
 
 # View logs
@@ -314,10 +431,12 @@ ai-services/
 │   ├── __init__.py
 │   ├── main.py              # FastAPI application
 │   ├── ollama_client.py     # Ollama integration
+│   ├── training_service.py  # Training and embedding service
 │   ├── personality_store.py # Personality management
 │   ├── schema.py           # Pydantic models
 │   └── routes/
-│       └── chat_routes.py  # Chat endpoints
+│       ├── chat_routes.py   # Chat endpoints
+│       └── training_routes.py # Training endpoints
 ├── personalities/
 │   ├── aithen_core.json    # Default personality
 │   └── personality_helper.json
@@ -333,15 +452,31 @@ ai-services/
 1. **Ollama Connection Failed**
    - Ensure Ollama is running: `ollama serve`
    - Check OLLAMA_URL environment variable
-   - Verify model is installed: `ollama pull mistral`
+   - Verify models are installed: `ollama pull mistral` and `ollama pull nomic-embed-text`
 
-2. **Streaming Not Working**
+2. **Embedding Generation 404 Error**
+   - Verify the embedding model is installed: `ollama pull nomic-embed-text`
+   - Check that Ollama API is accessible at the configured URL
+   - Ensure the API endpoint uses `input` instead of `prompt` in the payload
+
+3. **PostgreSQL Connection Failed**
+   - Verify PostgreSQL is running and accessible
+   - Check database credentials in db_config
+   - Ensure pgvector extension is enabled: `CREATE EXTENSION IF NOT EXISTS vector;`
+
+4. **File Processing Errors**
+   - For PDF files: Ensure PyPDF2 is installed (`pip install PyPDF2`)
+   - For DOCX files: Ensure python-docx is installed (`pip install python-docx`)
+   - For Excel files: Ensure pandas and openpyxl are installed (`pip install pandas openpyxl`)
+
+5. **Streaming Not Working**
    - Use curl with `-N` flag for unbuffered output
    - Check if endpoint supports streaming
    - Verify `stream: true` in request body
 
-3. **Docker Issues**
-   - Use `host.docker.internal` for Ollama URL in Docker
+6. **Docker Issues**
+   - Use `host.docker.internal` for Ollama URL in Docker (Windows/Mac)
+   - Use service name `ollama` for Docker Compose networking
    - Ensure ports are properly exposed
    - Check container logs: `docker logs <container_id>`
 
@@ -354,6 +489,30 @@ uvicorn app.main:app --reload --log-level debug
 # Docker with debug
 docker run -p 8000:8000 -e LOG_LEVEL=debug aithen-ai-service
 ```
+
+## 📊 Performance Optimization
+
+### Chunking Configuration
+
+Adjust chunk size and overlap based on your use case:
+
+- **Smaller chunks (500-800)**: Better for precise retrieval, more embeddings
+- **Larger chunks (1500-2000)**: Better context, fewer embeddings
+- **Overlap (10-20% of chunk size)**: Prevents context loss at boundaries
+
+### Concurrent Processing
+
+The training service processes multiple files concurrently. Adjust based on system resources:
+
+- Default: 3 concurrent jobs
+- Max files per job: 5 files
+
+## 🔐 Security Considerations
+
+- **Database Credentials**: Never commit database credentials to version control
+- **API Keys**: Store sensitive keys in environment variables
+- **File Uploads**: Validate file types and sizes before processing
+- **Network**: Use HTTPS in production environments
 
 ## 📄 License
 

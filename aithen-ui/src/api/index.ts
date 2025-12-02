@@ -122,6 +122,29 @@ export type {
   ChatWithMessages,
 } from './chatApi';
 
+// Knowledge Base API endpoints
+export {
+  getKnowledgeBases,
+  getKnowledgeBase,
+  createKnowledgeBase,
+  updateKnowledgeBase,
+  deleteKnowledgeBase,
+  getKnowledgeBaseFiles,
+  uploadKnowledgeBaseFiles,
+  deleteKnowledgeBaseFile,
+  trainKnowledgeBase,
+  getKnowledgeBaseVersions,
+  deleteKnowledgeBaseVersion,
+} from './knowledgeBaseApi';
+
+export type {
+  KnowledgeBase,
+  KnowledgeBaseFile,
+  KnowledgeBaseVersion,
+  CreateKnowledgeBaseRequest,
+  UpdateKnowledgeBaseRequest,
+} from './knowledgeBaseApi';
+
 // Types
 export type {
   ApiRequestConfig,

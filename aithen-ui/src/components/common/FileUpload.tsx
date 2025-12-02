@@ -54,7 +54,7 @@ const getFileIcon = (fileName: string) => {
 
 export default function FileUpload({
   onFilesSelected,
-  acceptedFileTypes = ['.pdf', '.doc', '.docx', '.txt', '.md', '.json', '.csv'],
+  acceptedFileTypes = ['.pdf', '.doc', '.docx', '.txt', '.md', '.json', '.csv', '.xls', '.xlsx'],
   maxFiles = 50,
   maxFileSize = 100, // 100MB default
   multiple = true,

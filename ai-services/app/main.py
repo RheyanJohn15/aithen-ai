@@ -5,6 +5,7 @@ import os
 
 from .personality_store import PersonalityStore
 from .routes.chat_routes import router as chat_router
+from .routes.training_routes import router as training_router
 
 # Environment variables
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
@@ -16,8 +17,9 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Include the chat router
+# Include routers
 app.include_router(chat_router)
+app.include_router(training_router)
 
 store = PersonalityStore("personalities")
 

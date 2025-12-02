@@ -12,12 +12,25 @@ import (
 var publicRoutes = []string{
 	"/api/auth/login",
 	"/api/auth/register",
+	"/api/ws", // WebSocket routes handle auth in the handler
 }
 
 // isPublicRoute checks if the current route is a public route
 func isPublicRoute(path string) bool {
+	// c.Request.URL.Path should already be without query string, but let's be safe
+	// Remove query string if present
+	basePath := path
+	if idx := len(path); idx > 0 {
+		for i := 0; i < len(path); i++ {
+			if path[i] == '?' {
+				basePath = path[:i]
+				break
+			}
+		}
+	}
+	
 	for _, publicRoute := range publicRoutes {
-		if path == publicRoute {
+		if basePath == publicRoute {
 			return true
 		}
 	}
@@ -59,8 +72,25 @@ func AuthMiddleware() gin.HandlerFunc {
 // AuthMiddlewareWithSkip validates JWT token but skips authentication for public routes
 func AuthMiddlewareWithSkip() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Check if this is a public route
-		if isPublicRoute(c.Request.URL.Path) {
+		// Check if this is a public route (check path without query params)
+		path := c.Request.URL.Path
+		if isPublicRoute(path) {
+			c.Next()
+			return
+		}
+		
+		// Also check if it's a WebSocket upgrade request
+		// WebSocket requests have "Upgrade: websocket" header
+		upgradeHeader := c.GetHeader("Upgrade")
+		if upgradeHeader == "websocket" || upgradeHeader == "WebSocket" {
+			// Let the WebSocket handler handle authentication
+			c.Next()
+			return
+		}
+		
+		// Check if path is /api/ws (WebSocket endpoint)
+		if path == "/api/ws" {
+			// Let the WebSocket handler handle authentication
 			c.Next()
 			return
 		}
